@@ -4,29 +4,26 @@
 #include <math.h>
 #include <OpenGP/GL/Eigen.h>
 
-#include "Triangle/Triangle.h"
-#include "Quad/Quad.h"
+// #include "Triangle/Triangle.h"
+// #include "Quad/Quad.h"
+#include "Cube/Cube.h"
 
 
 using namespace OpenGP;
 
-Triangle triangle;
-Quad quad;
+// Triangle triangle;
+// Quad quad;
+Cube cube;
 
 void display() {
 
     glClear(GL_COLOR_BUFFER_BIT);
 
-    triangle.draw();
-    quad.draw();
+    // triangle.draw();
+    // quad.draw();
+	cube.draw();
 
 }
-
-///
-/// You can use this sub-project as a  starting point for your second
-/// assignemnt. See the files triangle.h and quad.h for examples of
-/// basic OpenGL code.
-///
 
 int main(int, char**) {
 
@@ -35,8 +32,9 @@ int main(int, char**) {
 
     glClearColor(0.0,0.0,0.0,0.0);
 
-    triangle.init();
-    quad.init();
+    // triangle.init();
+    // quad.init();
+	cube.init();
 
     OpenGP::glfwDisplayFunc(&display);
 
