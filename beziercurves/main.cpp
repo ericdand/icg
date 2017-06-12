@@ -3,7 +3,6 @@
 
 #include <math.h>
 #include <OpenGP/GL/Eigen.h>
-#include <cstdio>
 
 using namespace OpenGP;
 
@@ -20,6 +19,8 @@ static GLuint cp_attr;   // vertex attribute for CPs
 #define VERTEX_COUNT 1000
 static GLfloat vpoint[VERTEX_COUNT*2]; // points along the curve
 static GLfloat cps[4*2]; // control points
+static int selected_cp = -1; // cp being moved by the mouse; -1 is "none".
+static int cps_changed = 0; // set to 1 whenever the display needs updating.
 
 /** Linear interpolation t percent [0.0, 1.0] of the way between a and b.
  * Used by calculate_curve.
@@ -52,13 +53,41 @@ static void calculate_curve() {
 	}
 }
 
+void mouse_btn_cb(GLFWwindow* window, int button, int action, int mods) {
+	int i;
+	double xpos, ypos;
+	glfwGetCursorPos(window, &xpos, &ypos);
+	// x and y are (0, 0) in the top-left to (640, 480) in the bottom-right.
+	// Scale these to (-1, 1) in the TL to (1, -1) in the BR.
+	xpos = xpos/(640/2) - 1;
+	ypos = -ypos/(480/2) + 1;
+	if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) {
+		// Is the mouse close to any CPs?
+		for(i = 0; i < 4; i++) {
+			if (abs(xpos - cps[i*2]) < 0.2 && abs(ypos - cps[i*2+1]) < 0.2) {
+				selected_cp = i;
+				break;
+			}
+		}
+	} else if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_RELEASE) {
+		selected_cp = -1;
+	}
+}
+
+void mouse_move_cb(GLFWwindow* window, double xpos, double ypos) {
+	if (selected_cp == -1) return;
+	cps[selected_cp*2]   =  xpos/(640/2) - 1;
+	cps[selected_cp*2+1] = -ypos/(480/2) + 1;
+	cps_changed = 1;
+}
+
 void display() {
     glClear(GL_COLOR_BUFFER_BIT);
 
 	glUseProgram(_pid);
 
 	glBindVertexArray(curve_vao);
-	if (0/* points were moved by the user */) {
+	if (cps_changed) {
 		calculate_curve();
 		glBindBuffer(GL_ARRAY_BUFFER, curve_vbo);
 		glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vpoint), vpoint);
@@ -66,13 +95,14 @@ void display() {
 	glDrawArrays(GL_LINE_STRIP, 0, VERTEX_COUNT);
 	
 	glBindVertexArray(cp_vao);
-	if (0/* points were moved by the user */) {
+	if (cps_changed) {
 		// CPs already adjusted; just copy them to the GPU.
 		glBindBuffer(GL_ARRAY_BUFFER, cp_vbo);
 		glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(cps), cps);
 	}
 	glDrawArrays(GL_LINES, 0, 4);
 
+	cps_changed = 0;
 	glBindVertexArray(0);
 	glUseProgram(0);
 }
@@ -120,6 +150,9 @@ int main(int, char**) {
     glClearColor(0.0,0.0,0.0,0.0);
 
 	init();
+
+	glfwSetCursorPosCallback(OpenGP::window, mouse_move_cb);
+	glfwSetMouseButtonCallback(OpenGP::window, mouse_btn_cb);
 
     OpenGP::glfwDisplayFunc(&display);
 
