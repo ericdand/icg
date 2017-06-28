@@ -6,7 +6,6 @@ inline float mix(float x, float y, float alpha) {
     return y * alpha + x * (1.0f - alpha);
 }
 
-
 inline float f(float t) {
     float t_3 = t * t * t;
     return 6 * t * t * t_3 - 15 * t * t_3 + 10 * t_3;
@@ -46,37 +45,44 @@ inline GLuint generate_noise() {
         }
     }
 
-    int period = 64;
-    float frequency = 1.0f / period;
+	int period = 64;
+	for (int octave = 0; octave < 4; octave++) {
+		float frequency = 1.0f / period;
+		float scale = (octave+1)/(float)16;
+		for (int i = 0; i < width; ++ i) {
+			for (int j = 0; j < height; ++ j) {
+				int left = (i / period) * period;
+				int right = (left + period) % width;
+				float dx = (i - left) * frequency;
 
-    for (int i = 0; i < width; ++ i) {
-        for (int j = 0; j < height; ++ j) {
-            int left = (i / period) * period;
-            int right = (left + period) % width;
-            float dx = (i - left) * frequency;
+				int top = (j / period) * period;
+				int bottom = (top + period) % height;
+				float dy = (j - top) * frequency;
 
-            int top = (j / period) * period;
-            int bottom = (top + period) % height;
-            float dy = (j - top) * frequency;
+				vec2 a(dx, -dy);
+				vec2 b(dx - 1, -dy);
+				vec2 c(dx - 1, 1 - dy);
+				vec2 d(dx, 1 - dy);
 
-            vec2 a(dx, -dy);
-            vec2 b(dx - 1, -dy);
-            vec2 c(dx - 1, 1 - dy);
-            vec2 d(dx, 1 - dy);
+				vec2 topleft = sample_gradient(left, top);
+				vec2 topright = sample_gradient(right, top);
+				vec2 bottomleft = sample_gradient(left, bottom);
+				vec2 bottomright = sample_gradient(right, bottom);
 
-            vec2 topleft = sample_gradient(left, top);
-            vec2 topright = sample_gradient(right, top);
-            vec2 bottomleft = sample_gradient(left, bottom);
-            vec2 bottomright = sample_gradient(right, bottom);
+				float tldot = b.dot(topleft);
+				float trdot = a.dot(topright);
+				float bldot = c.dot(bottomleft);
+				float brdot = d.dot(bottomright);
 
-            /// TODO: add dot products and bilinear interpolation
-            /// Hint: use f(t) and mix(x, y, alpha)
+				float leftside = mix(tldot, bldot, f(dy));
+				float rightside = mix(trdot, brdot, f(dy));
+				float noise = scale*mix(rightside, leftside, f(dx));
 
-            float noise = 0;
-
-            noise_data[i + j * height] += noise;
-        }
-    }
+				noise_data[i + j * height] += noise;
+			}
+		}
+		period /= 2;
+	}
 
     GLuint _tex;
 
