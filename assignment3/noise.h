@@ -45,7 +45,7 @@ inline GLuint generate_noise() {
         }
     }
 
-	int period = 64;
+	int period = 512;
 	for (int octave = 0; octave < 4; octave++) {
 		float frequency = 1.0f / period;
 		float scale = (octave+1)/(float)16;
@@ -59,24 +59,24 @@ inline GLuint generate_noise() {
 				int bottom = (top + period) % height;
 				float dy = (j - top) * frequency;
 
-				vec2 a(dx, -dy);
-				vec2 b(dx - 1, -dy);
-				vec2 c(dx - 1, 1 - dy);
-				vec2 d(dx, 1 - dy);
+				vec2 a(dx, -dy); //		 (+, -)
+				vec2 b(dx - 1, -dy); //	 (-, -)
+				vec2 c(dx - 1, 1 - dy);//(-, +)
+				vec2 d(dx, 1 - dy); //	 (+, +)
 
 				vec2 topleft = sample_gradient(left, top);
 				vec2 topright = sample_gradient(right, top);
 				vec2 bottomleft = sample_gradient(left, bottom);
 				vec2 bottomright = sample_gradient(right, bottom);
 
-				float tldot = b.dot(topleft);
-				float trdot = a.dot(topright);
-				float bldot = c.dot(bottomleft);
-				float brdot = d.dot(bottomright);
+				float tldot = a.dot(topleft);
+				float trdot = b.dot(topright);
+				float bldot = d.dot(bottomleft);
+				float brdot = c.dot(bottomright);
 
 				float leftside = mix(tldot, bldot, f(dy));
 				float rightside = mix(trdot, brdot, f(dy));
-				float noise = scale*mix(rightside, leftside, f(dx));
+				float noise = scale*mix(leftside, rightside, f(dx));
 
 				noise_data[i + j * height] += noise;
 			}

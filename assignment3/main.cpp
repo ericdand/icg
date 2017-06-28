@@ -10,14 +10,13 @@ using namespace OpenGP;
 
 Mesh grid;
 typedef Eigen::Transform<float,3,Eigen::Affine> Transform;
-const int window_width = 1280;
-const int window_height = 720;
+int window_width = 1280;
+int window_height = 720;
+int pxwidth, pxheight;
 
 void display() {
-	// NOTE: *2 scalar is to compensate for Retina display pixel scaling.
-	// TODO: Check out how to get the actual scaling value from the computer.
-    glViewport(0,0,window_width*2,window_height*2);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	glViewport(0, 0, pxwidth, pxheight);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     float ratio = window_width / (float) window_height;
     Transform modelTransform = Transform::Identity();
@@ -26,7 +25,7 @@ void display() {
 
     //camera movement
     float time = .5 * glfwGetTime();
-    vec3 cam_pos(0, 2, 2);
+    vec3 cam_pos(0, 0.5, 0.5);
     // vec3 cam_look(-1.0f, -1.0f, 0.0f);
     vec3 cam_look(0.0f, 0.0f, 0.0f);
     vec3 cam_up(0.0f, 1.0f, 0.0f);
@@ -36,9 +35,9 @@ void display() {
 }
 
 int main(int, char**) {
-
     OpenGP::glfwInitWindowSize(window_width, window_height);
     OpenGP::glfwMakeWindow("Assignment 3");
+	glfwGetFramebufferSize(window, &pxwidth, &pxheight);
 
     glClearColor(0.0,0.0,0.0,0.0);
     glEnable(GL_DEPTH_TEST);
