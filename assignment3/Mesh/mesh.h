@@ -1,4 +1,5 @@
 #pragma once
+#include <vector>
 #include "icg_common.h"
 #include "OpenGP/Eigen/Image.h"
 #include "../noise.h"
@@ -10,7 +11,6 @@ protected:
     GLuint _height_tex;
     GLuint _diffuse_tex;
 
-    const std::string filename = "Mesh/grid.obj";
     OpenGP::SurfaceMesh mesh;
     GLuint _vpoint;    ///< memory buffer
     GLuint _vnormal;   ///< memory buffer
@@ -23,11 +23,32 @@ public:
         _pid = OpenGP::load_shaders("Mesh/Mesh_vshader.glsl", "Mesh/Mesh_fshader.glsl");
         if(!_pid) exit(EXIT_FAILURE);
         check_error_gl();
-        bool success = mesh.read(filename.c_str());
-        assert(success);
+
+		// Generate the mesh. 128x128.
+		// Vertices in x-major order: (-1, 0, -1), (-1, 0, -0.9), (-1, 0, -0.8)
+		for(int i = 0; i < 128; i++) {
+			for(int j = 0; j < 128; j++) {
+				mesh.add_vertex(vec3(2.0*(i/127.0)-1.0, 0.0, 2.0*(j/127.0)-1.0));
+			}
+		}
+		// Faces.
+		// A face is made up of 4 vertices. There are 127x127 faces.
+		// Vertices must be given in CCW order, in a Z pattern. 
+		// (e.g. bottom, top, left, right).
+		std::vector<OpenGP::SurfaceMesh::Vertex> face_vertices;
+		for(int i = 0; i < 127; i++) {
+			for(int j = 0; j < 127; j++) {
+				face_vertices.clear();
+				face_vertices.push_back(OpenGP::SurfaceMesh::Vertex(i*128+j+1));
+				face_vertices.push_back(OpenGP::SurfaceMesh::Vertex(i*128+j));
+				face_vertices.push_back(OpenGP::SurfaceMesh::Vertex((i+1)*128+j));
+				face_vertices.push_back(OpenGP::SurfaceMesh::Vertex((i+1)*128+j+1));
+				mesh.add_face(face_vertices);
+			}
+		}
         mesh.triangulate();
         mesh.update_vertex_normals();
-        printf("Loaded mesh '%s' (#V=%d, #F=%d)\n", filename.c_str(), mesh.n_vertices(), mesh.n_faces());
+        printf("Generated mesh (#V=%d, #F=%d)\n", mesh.n_vertices(), mesh.n_faces());
 
         ///--- Vertex one vertex Array
         glGenVertexArrays(1, &_vao);
