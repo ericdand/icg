@@ -14,6 +14,9 @@ int window_width = 1280;
 int window_height = 720;
 int pxwidth, pxheight;
 
+float camx = 0.5f, 
+	  camz = 0.5f;
+
 void display() {
 	glViewport(0, 0, pxwidth, pxheight);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -25,13 +28,25 @@ void display() {
 
     //camera movement
     float time = .5 * glfwGetTime();
-    vec3 cam_pos(0, 0.5, 0.5);
-    // vec3 cam_look(-1.0f, -1.0f, 0.0f);
-    vec3 cam_look(0.0f, 0.0f, 0.0f);
+
+	// TODO: Movement controlled by WASD. Direction relative to look direction.
+    vec3 cam_pos(camx, grid.height_at(camx, camz)+0.2, camz);
+	// printf("height at (%d, %d): %f\n", (int)(camx*512), (int)(camz*512), 
+	// 			grid.height_at(camx, camz));
+	camz += 0.0001;
+
+	// TODO: Look controlled by mouse; x-axis controls yaw, y-axis controls
+	// pitch. Do this by figuring out the correct 3D rotation matrix for these
+	// two axes based on a pair of angles, change angles as mouse moves.
+	vec3 look_dir(cos(time), 0.0f, -sin(time));
+	look_dir.normalize();
+	vec3 cam_look = cam_pos + look_dir;
     vec3 cam_up(0.0f, 1.0f, 0.0f);
     mat4 view = OpenGP::lookAt(cam_pos, cam_look, cam_up);
 
     grid.draw(model, view, projection);
+
+	// TODO: Skybox!
 }
 
 int main(int, char**) {

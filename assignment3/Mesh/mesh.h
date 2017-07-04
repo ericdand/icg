@@ -2,7 +2,6 @@
 #include <vector>
 #include "icg_common.h"
 #include "OpenGP/Eigen/Image.h"
-#include "../noise.h"
 
 class Mesh{
 protected:
@@ -15,8 +14,123 @@ protected:
     GLuint _vpoint;    ///< memory buffer
     GLuint _vnormal;   ///< memory buffer
 
+	float *noise_data;
+	int noise_width = 512;
+	int noise_height = 512;
+
+	inline float mix(float x, float y, float alpha) {
+		return y * alpha + x * (1.0f - alpha);
+	}
+
+	inline float f(float t) {
+		float t_3 = t * t * t;
+		return 6 * t * t * t_3 - 15 * t * t_3 + 10 * t_3;
+	}
+
+	inline float rand01() {
+		return ((float) std::rand())/((float) RAND_MAX);
+	}
+
 public:
     GLuint getProgramID(){ return _pid; }
+
+	float height_at(float x, float z) {
+		if (noise_data == nullptr) return 1.0;
+		if (0.0 > x || x > 1.0 || 0.0 > z || z > 1.0) return 1.0;
+		return noise_data[(int)(noise_width*x) + ((int)(noise_height*z))*noise_width];
+		// TODO: For bonus points, smooth this out to lerp between the
+		// four nearest height points. Kinda jerky as-is.
+	}
+
+	inline GLuint generate_perlin_noise() {
+		float *gradients = new float[2 * noise_width * noise_height];
+		auto sample_gradient = [&](int i, int j) {
+			float x = gradients[2*i + 2*j*noise_height];
+			float y = gradients[2*i + 2*j*noise_height];
+			return vec2(x,y);
+		};
+		noise_data = new float[noise_width * noise_height];
+
+		for (int i = 0; i < noise_width; ++ i) {
+			for (int j = 0; j < noise_height; ++ j) {
+
+				float angle = rand01();
+
+				gradients[2*i + 2*j*noise_height]     = cos(2 * angle * M_PI);
+				gradients[1 + 2*i + 2*j*noise_height] = sin(2 * angle * M_PI);
+
+			}
+		}
+
+		for (int i = 0; i < noise_width; ++ i) {
+			for (int j = 0; j < noise_height; ++ j) {
+				noise_data[i + j * noise_height] = 0;
+			}
+		}
+
+		int period = 512;
+		for (int octave = 0; octave < 4; octave++) {
+			float frequency = 1.0f / period;
+			float scale = (octave+1)/(float)16;
+			for (int i = 0; i < noise_width; ++ i) {
+				for (int j = 0; j < noise_height; ++ j) {
+					int left = (i / period) * period;
+					int right = (left + period) % noise_width;
+					float dx = (i - left) * frequency;
+
+					int top = (j / period) * period;
+					int bottom = (top + period) % noise_height;
+					float dy = (j - top) * frequency;
+
+					vec2 a(dx, -dy); //		 (+, -)
+					vec2 b(dx - 1, -dy); //	 (-, -)
+					vec2 c(dx - 1, 1 - dy);//(-, +)
+					vec2 d(dx, 1 - dy); //	 (+, +)
+
+					vec2 topleft = sample_gradient(left, top);
+					vec2 topright = sample_gradient(right, top);
+					vec2 bottomleft = sample_gradient(left, bottom);
+					vec2 bottomright = sample_gradient(right, bottom);
+
+					float tldot = a.dot(topleft);
+					float trdot = b.dot(topright);
+					float bldot = d.dot(bottomleft);
+					float brdot = c.dot(bottomright);
+
+					float leftside = mix(tldot, bldot, f(dy));
+					float rightside = mix(trdot, brdot, f(dy));
+					float noise = scale*mix(leftside, rightside, f(dx));
+
+					noise_data[i + j * noise_height] += noise;
+				}
+			}
+			period /= 2;
+		}
+
+		GLuint _tex;
+
+		glGenTextures(1, &_tex);
+		glBindTexture(GL_TEXTURE_2D, _tex);
+
+		check_error_gl();
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		check_error_gl();
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_R32F,
+					 noise_width, noise_height, 0,
+					 GL_RED, GL_FLOAT, noise_data);
+		check_error_gl();
+
+		delete gradients;
+
+		return _tex;
+	}
+
+	inline GLuint generate_noise() {
+		return generate_perlin_noise();
+	}
 
     void init(){
         ///--- Compile the shaders
